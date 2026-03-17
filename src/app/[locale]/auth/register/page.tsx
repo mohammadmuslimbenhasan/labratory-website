@@ -42,18 +42,29 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
-        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, phone: form.phone || undefined, companyName: form.companyName || undefined }),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phone: form.phone || undefined,
+          companyName: form.companyName || undefined,
+        }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) { setError(data.error || t('accountExists')); return; }
+      if (!res.ok || !data.success) {
+        setError(data.error || t('accountExists'));
+        return;
+      }
       useAuthStore.getState().setUser(data.data.user);
       router.push('/dashboard');
-    } catch { setError('注册失败，请稍后重试'); }
-    finally { setLoading(false); }
+    } catch {
+      setError('注册失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,7 +94,10 @@ export default function RegisterPage() {
             <Button type="submit" fullWidth loading={loading} size="lg">{t('register')}</Button>
           </form>
           <div className="mt-6 text-center text-sm text-gray-500">
-            已有账号？{' '}<Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">{t('login')}</Link>
+            已有账号？{' '}
+            <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
+              {t('login')}
+            </Link>
           </div>
         </Card>
       </main>
