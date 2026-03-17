@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/routing';
 import {
   Search, Menu, X, ChevronDown, Bell, User, Globe,
-  FlaskConical, Building2, Microscope, FileText, Wrench,
-  ShoppingCart, MessageSquare,
+  FlaskConical, Building2, Microscope, FileText,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
@@ -18,8 +18,7 @@ export function Header() {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [servicesDropdown, setServicesDropdown] = useState(false);
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const { notificationCount } = useAppStore();
   const pathname = usePathname();
   const currentLocale = useLocale();
@@ -30,6 +29,18 @@ export function Header() {
     const newLocale = currentLocale === 'zh-CN' ? 'en' : 'zh-CN';
     intlRouter.replace(intlPathname, { locale: newLocale });
   };
+
+  const getDashboardHref = () => {
+    const role = user?.role;
+
+    if (role === 'SUPER_ADMIN') return '/admin/dashboard';
+    if (role === 'FINANCE_ADMIN') return '/admin/finance';
+    if (role === 'CUSTOMER') return '/dashboard';
+
+    return '/dashboard';
+  };
+
+  const dashboardHref = getDashboardHref();
 
   const mainNav = [
     { href: '/', label: t('home') },
@@ -54,14 +65,22 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-      {/* Top bar */}
       <div className="bg-gray-900 text-gray-300 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-8">
-          <span>{tCommon('siteName')} - {tCommon('siteDesc')}</span>
+          <span>
+            {tCommon('siteName')} - {tCommon('siteDesc')}
+          </span>
           <div className="flex items-center gap-4">
-            <Link href="/help" className="hover:text-white transition-colors">{t('help')}</Link>
-            <Link href="/contact" className="hover:text-white transition-colors">{t('contact')}</Link>
-            <button onClick={switchLocale} className="flex items-center gap-1 hover:text-white transition-colors">
+            <Link href="/help" className="hover:text-white transition-colors">
+              {t('help')}
+            </Link>
+            <Link href="/contact" className="hover:text-white transition-colors">
+              {t('contact')}
+            </Link>
+            <button
+              onClick={switchLocale}
+              className="flex items-center gap-1 hover:text-white transition-colors"
+            >
               <Globe className="h-3 w-3" />
               <span>{currentLocale === 'zh-CN' ? 'English' : '中文'}</span>
             </button>
@@ -69,18 +88,15 @@ export function Header() {
         </div>
       </div>
 
-      {/* Main header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <FlaskConical className="h-8 w-8 text-blue-600" />
             <span className="text-xl font-bold text-gray-900">{tCommon('siteName')}</span>
           </Link>
 
-          {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-1">
-            {mainNav.map((item) => (
+            {mainNav.map(item => (
               <div key={item.href} className="relative group">
                 <Link
                   href={item.href}
@@ -90,20 +106,15 @@ export function Header() {
                       ? 'text-blue-600 bg-blue-50'
                       : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                   )}
-                  onMouseEnter={() => item.hasDropdown && setServicesDropdown(true)}
-                  onMouseLeave={() => item.hasDropdown && setServicesDropdown(false)}
                 >
                   {item.label}
-                  {item.hasDropdown && <ChevronDown className="h-3.5 w-3.5" />}
+                  {item.hasDropdown ? <ChevronDown className="h-3.5 w-3.5" /> : null}
                 </Link>
-                {item.hasDropdown && item.children && (
-                  <div
-                    className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
-                    onMouseEnter={() => setServicesDropdown(true)}
-                    onMouseLeave={() => setServicesDropdown(false)}
-                  >
+
+                {item.hasDropdown && item.children ? (
+                  <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                     <div className="bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[200px]">
-                      {item.children.map((child) => (
+                      {item.children.map(child => (
                         <Link
                           key={child.href}
                           href={child.href}
@@ -115,12 +126,11 @@ export function Header() {
                       ))}
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             ))}
           </nav>
 
-          {/* Actions */}
           <div className="flex items-center gap-2">
             <button className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700">
               <Search className="h-5 w-5" />
@@ -128,23 +138,31 @@ export function Header() {
 
             {isAuthenticated ? (
               <>
-                <Link href="/dashboard/messages" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 relative">
+                <Link
+                  href="/dashboard/messages"
+                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 relative"
+                >
                   <MessageSquare className="h-5 w-5" />
                 </Link>
-                <Link href="/dashboard" className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100">
+
+                <Link
+                  href={dashboardHref}
+                  className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                >
                   <Bell className="h-5 w-5" />
-                  {notificationCount > 0 && (
+                  {notificationCount > 0 ? (
                     <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                       {notificationCount > 9 ? '9+' : notificationCount}
                     </span>
-                  )}
+                  ) : null}
                 </Link>
+
                 <Link
-                  href="/dashboard"
+                  href={dashboardHref}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
                 >
                   <User className="h-4 w-4" />
-                  <span className="hidden md:inline">{user?.name}</span>
+                  <span className="hidden md:inline">{user?.name || 'Account'}</span>
                 </Link>
               </>
             ) : (
@@ -164,7 +182,6 @@ export function Header() {
               </div>
             )}
 
-            {/* Mobile menu button */}
             <button
               className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -175,11 +192,10 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
+      {mobileMenuOpen ? (
         <div className="lg:hidden bg-white border-t border-gray-200">
           <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
-            {mainNav.map((item) => (
+            {mainNav.map(item => (
               <div key={item.href}>
                 <Link
                   href={item.href}
@@ -193,7 +209,8 @@ export function Header() {
                 >
                   {item.label}
                 </Link>
-                {item.children?.map((child) => (
+
+                {item.children?.map(child => (
                   <Link
                     key={child.href}
                     href={child.href}
@@ -207,7 +224,7 @@ export function Header() {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </header>
   );
 }
