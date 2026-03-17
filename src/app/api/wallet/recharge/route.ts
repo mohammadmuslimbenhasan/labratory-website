@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
@@ -24,7 +25,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = rechargeSchema.parse(body);
 
-    // Idempotency: if key provided and tx already exists, return it
     if (data.idempotencyKey) {
       const existing = await prisma.transaction.findFirst({
         where: { referenceId: data.idempotencyKey },
@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
 
     const idempotencyKey = data.idempotencyKey || randomUUID();
 
-    // Create a PENDING transaction (payment intent)
     const transaction = await prisma.transaction.create({
       data: {
         walletId: wallet.id,
@@ -51,13 +50,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ──────────────────────────────────────────────────────────
-    // DEVELOPMENT ONLY: auto-confirm the recharge.
-    // In production, remove this block. A payment gateway webhook
-    // would call a separate internal endpoint to confirm.
-    // ──────────────────────────────────────────────────────────
-    const { Decimal } = await import('@prisma/client/runtime/library');
-    const newBalance = new Decimal(wallet.balance).add(new Decimal(data.amount));
+    const newBalance = new Prisma.Decimal(wallet.balance).add(
+      new Prisma.Decimal(data.amount)
+    );
 
     await prisma.$transaction([
       prisma.wallet.update({
