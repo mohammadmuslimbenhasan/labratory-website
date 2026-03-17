@@ -12,7 +12,7 @@ const protectedPrefixes = ['/dashboard', '/admin', '/lab-portal', '/enterprise']
 
 function getPathnameWithoutLocale(pathname: string): string {
   for (const locale of locales) {
-    if (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`) {
+    if (pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)) {
       return pathname.slice(`/${locale}`.length) || '/';
     }
   }
@@ -21,14 +21,14 @@ function getPathnameWithoutLocale(pathname: string): string {
 
 function getLocaleFromPathname(pathname: string): string {
   for (const locale of locales) {
-    if (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`) {
+    if (pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)) {
       return locale;
     }
   }
-  return defaultLocale as string;
+  return defaultLocale;
 }
 
-export default async function middleware(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (
@@ -41,8 +41,9 @@ export default async function middleware(request: NextRequest) {
   }
 
   const cleanPath = getPathnameWithoutLocale(pathname);
-  const isProtected = protectedPrefixes.some((prefix) =>
-    cleanPath.startsWith(prefix)
+
+  const isProtected = protectedPrefixes.some(
+    (prefix) => cleanPath === prefix || cleanPath.startsWith(`${prefix}/`)
   );
 
   if (isProtected) {
@@ -55,9 +56,10 @@ export default async function middleware(request: NextRequest) {
         locale === defaultLocale ? '/auth/login' : `/${locale}/auth/login`;
 
       const loginUrl = new URL(loginPath, request.url);
-
-      // Use locale-free callback path to avoid /en/en/... duplication
-      loginUrl.searchParams.set('callbackUrl', cleanPath);
+      loginUrl.searchParams.set(
+        'callbackUrl',
+        `${cleanPath}${request.nextUrl.search}`
+      );
 
       return NextResponse.redirect(loginUrl);
     }
@@ -67,5 +69,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/(zh-CN|en)/:path*', '/((?!api|_next|_vercel|.*\\..*).*)'],
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
