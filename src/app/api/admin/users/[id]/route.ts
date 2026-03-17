@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { successResponse, errorResponse, withAuth } from '@/lib/api-helpers';
@@ -13,7 +14,6 @@ const handler = async (request: NextRequest, user: JWTPayload) => {
     const body = await request.json();
     const data = adminUserUpdateSchema.parse(body);
 
-    // Prevent self-demotion
     if (id === user.userId && data.role && data.role !== user.role) {
       return errorResponse('不能修改自己的角色', 400);
     }
@@ -33,7 +33,7 @@ const handler = async (request: NextRequest, user: JWTPayload) => {
         action: 'ADMIN_UPDATE_USER',
         entity: 'User',
         entityId: id,
-        details: data as Record<string, unknown>,
+        details: JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue,
       },
     });
 

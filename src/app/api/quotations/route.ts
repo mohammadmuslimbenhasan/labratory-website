@@ -1,7 +1,14 @@
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { errorResponse, getAuthUser, getPaginationParams, paginatedResponse, successResponse } from '@/lib/api-helpers';
+import {
+  errorResponse,
+  getAuthUser,
+  getPaginationParams,
+  paginatedResponse,
+  successResponse,
+} from '@/lib/api-helpers';
 import { isAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -13,7 +20,6 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const status = url.searchParams.get('status') || undefined;
 
-    // Non-admins can only see their own quotations
     const where = {
       ...(isAdmin(user.role) ? {} : { userId: user.userId }),
       ...(status ? { status: status as never } : {}),
@@ -54,7 +60,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createQuotationSchema.parse(body);
 
-    // Only admins can create quotations for other users
     let targetUserId = user.userId;
     if (data.userId && data.userId !== user.userId) {
       if (!isAdmin(user.role)) {
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
         userId: targetUserId,
         rfqId: data.rfqId || null,
         title: data.title,
-        items: data.items,
+        items: JSON.parse(JSON.stringify(data.items)) as Prisma.InputJsonValue,
         totalAmount: data.totalAmount,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         notes: data.notes,
@@ -83,7 +88,9 @@ export async function POST(request: NextRequest) {
         action: 'CREATE_QUOTATION',
         entity: 'Quotation',
         entityId: quotation.id,
-        details: { targetUserId, rfqId: data.rfqId },
+        details: JSON.parse(
+          JSON.stringify({ targetUserId, rfqId: data.rfqId })
+        ) as Prisma.InputJsonValue,
       },
     });
 
