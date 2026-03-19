@@ -31,12 +31,7 @@ function getLocaleFromPathname(pathname: string): string {
 export default function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  if (
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/_vercel') ||
-    pathname.includes('.')
-  ) {
+  if (pathname === '/') {
     return NextResponse.next();
   }
 
@@ -69,5 +64,5 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
 };
