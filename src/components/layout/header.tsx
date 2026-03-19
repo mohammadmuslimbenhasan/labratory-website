@@ -1,24 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Link, usePathname } from '@/i18n/routing';
+import { useTranslations, useLocale } from 'next-intl';
 import {
-  Search, Menu, X, ChevronDown, Bell, User, Globe,
-  FlaskConical, Building2, Microscope, FileText,
+  Link,
+  usePathname,
+  useRouter as useIntlRouter,
+  usePathname as useIntlPathname,
+} from '@/i18n/routing';
+import {
+  Search,
+  Menu,
+  X,
+  ChevronDown,
+  Bell,
+  User,
+  Globe,
+  FlaskConical,
+  Building2,
+  Microscope,
+  FileText,
   MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
 import { cn } from '@/lib/utils';
-import { useLocale } from 'next-intl';
-import { useRouter as useIntlRouter, usePathname as useIntlPathname } from '@/i18n/routing';
 
 export function Header() {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const { isAuthenticated, user } = useAuthStore();
+  const loggedIn = isAuthenticated && !!user;
+
   const { notificationCount } = useAppStore();
   const pathname = usePathname();
   const currentLocale = useLocale();
@@ -36,6 +51,8 @@ export function Header() {
     if (role === 'SUPER_ADMIN') return '/admin/dashboard';
     if (role === 'FINANCE_ADMIN') return '/admin/finance';
     if (role === 'CUSTOMER') return '/dashboard';
+    if (role === 'LAB_PARTNER') return '/lab-portal/dashboard';
+    if (role === 'ENTERPRISE_MEMBER') return '/enterprise/workspace';
 
     return '/dashboard';
   };
@@ -70,13 +87,16 @@ export function Header() {
           <span>
             {tCommon('siteName')} - {tCommon('siteDesc')}
           </span>
+
           <div className="flex items-center gap-4">
             <Link href="/help" className="hover:text-white transition-colors">
               {t('help')}
             </Link>
+
             <Link href="/contact" className="hover:text-white transition-colors">
               {t('contact')}
             </Link>
+
             <button
               onClick={switchLocale}
               className="flex items-center gap-1 hover:text-white transition-colors"
@@ -96,7 +116,7 @@ export function Header() {
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1">
-            {mainNav.map(item => (
+            {mainNav.map((item) => (
               <div key={item.href} className="relative group">
                 <Link
                   href={item.href}
@@ -114,7 +134,7 @@ export function Header() {
                 {item.hasDropdown && item.children ? (
                   <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                     <div className="bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[200px]">
-                      {item.children.map(child => (
+                      {item.children.map((child) => (
                         <Link
                           key={child.href}
                           href={child.href}
@@ -136,7 +156,7 @@ export function Header() {
               <Search className="h-5 w-5" />
             </button>
 
-            {isAuthenticated ? (
+            {loggedIn ? (
               <>
                 <Link
                   href="/dashboard/messages"
@@ -173,6 +193,7 @@ export function Header() {
                 >
                   {t('login')}
                 </Link>
+
                 <Link
                   href="/auth/register"
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
@@ -195,7 +216,7 @@ export function Header() {
       {mobileMenuOpen ? (
         <div className="lg:hidden bg-white border-t border-gray-200">
           <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
-            {mainNav.map(item => (
+            {mainNav.map((item) => (
               <div key={item.href}>
                 <Link
                   href={item.href}
@@ -210,7 +231,7 @@ export function Header() {
                   {item.label}
                 </Link>
 
-                {item.children?.map(child => (
+                {item.children?.map((child) => (
                   <Link
                     key={child.href}
                     href={child.href}
@@ -222,6 +243,36 @@ export function Header() {
                 ))}
               </div>
             ))}
+
+            <div className="pt-3 mt-3 border-t border-gray-200">
+              {loggedIn ? (
+                <Link
+                  href={dashboardHref}
+                  className="block px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {user?.name || 'Account'}
+                </Link>
+              ) : (
+                <div className="space-y-1">
+                  <Link
+                    href="/auth/login"
+                    className="block px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {t('login')}
+                  </Link>
+
+                  <Link
+                    href="/auth/register"
+                    className="block px-3 py-2.5 text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {t('register')}
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : null}

@@ -7,14 +7,20 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    // Delete session from DB if we have a sessionId
     if (user?.sessionId) {
-      await prisma.session.delete({ where: { id: user.sessionId } }).catch(() => {});
+      await prisma.session.delete({
+        where: { id: user.sessionId },
+      }).catch(() => {});
     }
 
     if (user) {
       await prisma.auditLog.create({
-        data: { userId: user.userId, action: 'LOGOUT', entity: 'User', entityId: user.userId },
+        data: {
+          userId: user.userId,
+          action: 'LOGOUT',
+          entity: 'User',
+          entityId: user.userId,
+        },
       }).catch(() => {});
     }
 
