@@ -28,16 +28,12 @@ function getLocaleFromPathname(pathname: string): string {
   return defaultLocale as string;
 }
 
-export default async function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-
-  if (pathname === '/') {
-    return NextResponse.next();
-  }
-
   const cleanPath = getPathnameWithoutLocale(pathname);
-  const isProtected = protectedPrefixes.some((prefix) =>
-    cleanPath.startsWith(prefix)
+
+  const isProtected = protectedPrefixes.some(
+    (prefix) => cleanPath === prefix || cleanPath.startsWith(`${prefix}/`)
   );
 
   if (isProtected) {
@@ -50,8 +46,6 @@ export default async function middleware(request: NextRequest) {
         locale === defaultLocale ? '/auth/login' : `/${locale}/auth/login`;
 
       const loginUrl = new URL(loginPath, request.url);
-
-      // Use locale-free callback path to avoid /en/en/... duplication
       loginUrl.searchParams.set('callbackUrl', cleanPath);
 
       return NextResponse.redirect(loginUrl);
@@ -62,5 +56,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/(zh-CN|en)/:path*', '/((?!api|_next|_vercel|.*\\..*).*)'],
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
