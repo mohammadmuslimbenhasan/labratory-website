@@ -5,6 +5,8 @@ import { successResponse, errorResponse } from '@/lib/api-helpers';
 import { requestResetSchema } from '@/lib/validations';
 import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
 import { randomBytes } from 'crypto';
+import { sendEmail } from '@/lib/email';
+import { passwordResetEmail } from '@/lib/email-templates';
 
 export async function POST(request: NextRequest) {
   const rlKey = getRateLimitKey(request, 'reset-request');
@@ -36,10 +38,16 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // TODO: Send email with reset link
-      // In production, integrate with email service (SendGrid, SES, etc.)
-      console.log(`[PASSWORD RESET] Token for ${data.email}: ${resetToken}`);
-      console.log(`[PASSWORD RESET] Link: ${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`);
+      // Send password reset email
+      const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
+      const emailContent = passwordResetEmail({ name: user.name, resetUrl });
+      
+      await sendEmail({
+        to: user.email,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+      });
     }
 
     return successResponse({ message: '如果该邮箱已注册，重置邮件已发送' });
