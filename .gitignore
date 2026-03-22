@@ -31,4 +31,11 @@ Thumbs.db
 
 # misc
 .cache/
-coverage/
+coverage/-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*

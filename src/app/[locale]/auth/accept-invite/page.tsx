@@ -34,7 +34,7 @@ export default function AcceptInvitePage() {
 
   const fetchInvitation = async (t: string) => {
     try {
-      const res = await fetch(`/api/enterprise/invites/${t}`, { credentials: 'include' });
+      const res = await fetch(`/api/enterprise/invites/view/${t}`, { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         setInvitation(data.data);
@@ -59,7 +59,7 @@ export default function AcceptInvitePage() {
 
     setAccepting(true);
     try {
-      const res = await fetch(`/api/enterprise/invites/${token}/accept`, {
+      const res = await fetch(`/api/enterprise/invites/accept/${token}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

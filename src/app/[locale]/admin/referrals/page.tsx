@@ -49,9 +49,9 @@ export default function AdminReferralsPage() {
       // Fetch referrals list
       const listRes = await fetch(`/api/admin/referrals?page=${page}`, { credentials: 'include' });
       const listData = await listRes.json();
-      if (listData.data) {
-        setReferrals(listData.data);
-        setTotalPages(listData.totalPages || 1);
+      if (listData.success && listData.data) {
+        setReferrals(listData.data.data || []);
+        setTotalPages(listData.data.totalPages || 1);
       }
 
       // Fetch config

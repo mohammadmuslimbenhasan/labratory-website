@@ -54,16 +54,16 @@ export default function EnterpriseMembersPage() {
       if (activeTab === 'members') {
         const res = await fetch(`/api/enterprise/members?page=${page}`, { credentials: 'include' });
         const data = await res.json();
-        if (data.data) {
-          setMembers(data.data);
-          setTotalPages(data.totalPages || 1);
+        if (data.success && data.data) {
+          setMembers(data.data.data || []);
+          setTotalPages(data.data.totalPages || 1);
         }
       } else {
         const res = await fetch(`/api/enterprise/invites?page=${page}`, { credentials: 'include' });
         const data = await res.json();
-        if (data.data) {
-          setInvitations(data.data);
-          setTotalPages(data.totalPages || 1);
+        if (data.success && data.data) {
+          setInvitations(data.data.data || []);
+          setTotalPages(data.data.totalPages || 1);
         }
       }
     } catch (error) {
