@@ -18,11 +18,13 @@ interface Service {
   slug: string;
   nameZh: string;
   nameEn: string;
-  description: string | null;
-  basePrice: number;
+  shortDescZh: string | null;
+  shortDescEn: string | null;
+  priceMin: number | null;
+  priceMax: number | null;
   turnaroundDays: number;
-  rating: number;
   orderCount: number;
+  viewCount: number;
   category: { nameZh: string };
   materials: Array<{ material: { nameZh: string } }>;
   standards: Array<{ standard: { code: string } }>;
@@ -368,18 +370,27 @@ export default function ServicesPage() {
                           <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
                             {service.nameZh}
                           </h3>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                            <span className="font-medium">{service.rating}</span>
-                          </div>
+                          <Badge variant="info" className="text-xs">
+                            {service.category.nameZh}
+                          </Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                          {service.description || '专业检测服务'}
+                          {service.shortDescZh || '专业检测服务'}
                         </p>
                         <div className="flex items-center justify-between text-sm">
                           <div>
-                            <span className="text-2xl font-bold text-blue-600">¥{service.basePrice}</span>
-                            <span className="text-gray-500 ml-1">起</span>
+                            {service.priceMin && service.priceMax ? (
+                              <>
+                                <span className="text-2xl font-bold text-blue-600">
+                                  ¥{service.priceMin.toLocaleString()}
+                                </span>
+                                {service.priceMin !== service.priceMax && (
+                                  <span className="text-gray-500 ml-1">起</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-lg font-semibold text-blue-600">议价</span>
+                            )}
                           </div>
                           <div className="flex items-center text-gray-500">
                             <Clock className="h-4 w-4 mr-1" />
@@ -387,7 +398,7 @@ export default function ServicesPage() {
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-                          已服务 {service.orderCount} 次
+                          {service.viewCount} 次浏览 · {service.orderCount} 次下单
                         </div>
                       </div>
                     </Link>

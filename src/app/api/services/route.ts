@@ -25,7 +25,20 @@ export async function GET(request: NextRequest) {
     }
 
     if (category) {
-      where.categoryId = category;
+      // Support both ID and slug for category
+      const isCuid = category.startsWith('c');
+      if (isCuid) {
+        where.categoryId = category;
+      } else {
+        // Find category by slug
+        const cat = await prisma.serviceCategory.findUnique({
+          where: { slug: category },
+          select: { id: true },
+        });
+        if (cat) {
+          where.categoryId = cat.id;
+        }
+      }
     }
 
     if (materialId) {
