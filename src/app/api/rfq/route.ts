@@ -7,15 +7,19 @@ import { generateRFQNo } from '@/lib/utils';
 
 const createRFQSchema = z.object({
   title: z.string().min(1, '请输入需求标题'),
-  materialDesc: z.string().optional(),
-  productType: z.string().optional(),
-  testingTarget: z.string().optional(),
-  issue: z.string().optional(),
-  standardReq: z.string().optional(),
+  category: z.string().optional(),
+  material: z.string().optional(),
+  industry: z.string().optional(),
   quantity: z.string().optional(),
+  requirements: z.string().optional(),
   deadline: z.string().optional(),
-  budget: z.string().optional(),
-  notes: z.string().optional(),
+  contactName: z.string().optional(),
+  contactPhone: z.string().optional(),
+  contactEmail: z.string().optional(),
+  attachments: z.array(z.object({
+    url: z.string(),
+    fileName: z.string(),
+  })).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -64,34 +68,51 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createRFQSchema.parse(body);
 
-    const rfq = await prisma.rFQRequest.create({
-      data: {
-        requestNo: generateRFQNo(),
-        userId: user.userId,
-        title: data.title,
-        materialDesc: data.materialDesc,
-        productType: data.productType,
-        testingTarget: data.testingTarget,
-        issue: data.issue,
-        standardReq: data.standardReq,
-        quantity: data.quantity,
-        deadline: data.deadline ? new Date(data.deadline) : undefined,
-        budget: data.budget,
-        notes: data.notes,
-        status: 'SUBMITTED',
-      },
-    });
+    const rfq = await prisma.$transaction(async (tx) => {
+      // Create RFQ
+      const newRFQ = await tx.rFQRequest.create({
+        data: {
+          requestNo: generateRFQNo(),
+          userId: user.userId,
+          title: data.title,
+          materialDesc: data.material,
+          productType: data.category,
+          testingTarget: data.industry,
+          quantity: data.quantity,
+          deadline: data.deadline ? new Date(data.deadline) : undefined,
+          notes: data.requirements,
+          status: 'SUBMITTED',
+        },
+      });
 
-    await prisma.notification.create({
-      data: {
-        userId: user.userId,
-        type: 'QUOTATION',
-        titleZh: '需求提交成功',
-        titleEn: 'Request Submitted',
-        contentZh: `您的检测需求 ${rfq.requestNo} 已提交，我们将尽快为您处理。`,
-        contentEn: `Your testing request ${rfq.requestNo} has been submitted.`,
-        link: `/rfq/${rfq.id}`,
-      },
+      // Create file records if any
+      if (data.attachments && data.attachments.length > 0) {
+        await tx.rFQFile.createMany({
+          data: data.attachments.map(att => ({
+            rfqId: newRFQ.id,
+            fileName: att.fileName,
+            fileUrl: att.url,
+            fileType: att.fileName.split('.').pop() || 'unknown',
+            fileSize: 0,
+            version: 1,
+          })),
+        });
+      }
+
+      // Create notification
+      await tx.notification.create({
+        data: {
+          userId: user.userId,
+          type: 'QUOTATION',
+          titleZh: '需求提交成功',
+          titleEn: 'Request Submitted',
+          contentZh: `您的检测需求 ${newRFQ.requestNo} 已提交，我们将尽快为您处理。`,
+          contentEn: `Your testing request ${newRFQ.requestNo} has been submitted.`,
+          link: `/dashboard/quotations`,
+        },
+      });
+
+      return newRFQ;
     });
 
     return successResponse(rfq, 201);
