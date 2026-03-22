@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/routing';
 import { Header } from '@/components/layout/header';
@@ -11,33 +11,31 @@ import {
   Users, BarChart3, CheckCircle2, Sparkles,
 } from 'lucide-react';
 
-// Demo data for the homepage
-const hotServices = [
-  { id: '1', slug: 'tensile-test', nameZh: '拉伸试验', category: '力学性能', price: 800, turnaround: 5, isHot: true },
-  { id: '2', slug: 'hardness-test', nameZh: '硬度测试', category: '力学性能', price: 500, turnaround: 3, isHot: true },
-  { id: '3', slug: 'chemical-composition', nameZh: '化学成分分析', category: '化学分析', price: 1200, turnaround: 7, isHot: false },
-  { id: '4', slug: 'fatigue-test', nameZh: '疲劳试验', category: '力学性能', price: 3000, turnaround: 15, isHot: true },
-  { id: '5', slug: 'corrosion-test', nameZh: '腐蚀试验', category: '环境模拟', price: 2000, turnaround: 20, isHot: false },
-  { id: '6', slug: 'metallographic', nameZh: '金相分析', category: '微观分析', price: 600, turnaround: 3, isHot: false },
-];
+interface Service {
+  id: string;
+  slug: string;
+  nameZh: string;
+  category: { nameZh: string };
+  basePrice: number;
+  turnaroundDays: number;
+  isHot?: boolean;
+}
 
-const categories = [
-  { icon: '🔬', name: '力学性能测试', count: 45 },
-  { icon: '🧪', name: '化学成分分析', count: 32 },
-  { icon: '🌡️', name: '环境模拟试验', count: 28 },
-  { icon: '📐', name: '尺寸计量检测', count: 20 },
-  { icon: '⚡', name: '电子电气测试', count: 35 },
-  { icon: '🛡️', name: '可靠性测试', count: 18 },
-  { icon: '🔩', name: '无损检测', count: 22 },
-  { icon: '🧬', name: '材料微观分析', count: 15 },
-];
+interface Category {
+  id: string;
+  nameZh: string;
+  slug: string;
+  icon: string | null;
+  count: number;
+}
 
-const stats = [
-  { value: '2000+', label: '检测项目' },
-  { value: '150+', label: '合作实验室' },
-  { value: '10000+', label: '服务客户' },
-  { value: '50000+', label: '检测报告' },
-];
+interface Stats {
+  services: number;
+  labs: number;
+  orders: number;
+  reports: number;
+  users: number;
+}
 
 export default function HomePage() {
   const t = useTranslations('home');
@@ -45,6 +43,43 @@ export default function HomePage() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [hotServices, setHotServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHomeData();
+  }, []);
+
+  const fetchHomeData = async () => {
+    try {
+      const [servicesRes, categoriesRes, statsRes] = await Promise.all([
+        fetch('/api/services?pageSize=6&sortBy=popular'),
+        fetch('/api/categories'),
+        fetch('/api/stats'),
+      ]);
+
+      const [servicesData, categoriesData, statsData] = await Promise.all([
+        servicesRes.json(),
+        categoriesRes.json(),
+        statsRes.json(),
+      ]);
+
+      if (servicesData.success) setHotServices(servicesData.data || []);
+      if (categoriesData.success) setCategories(categoriesData.data?.slice(0, 8) || []);
+      if (statsData.success) setStats(statsData.data);
+    } catch (error) {
+      console.error('Home data fetch error:', error);
+    }
+    setLoading(false);
+  };
+
+  const formatStat = (num: number) => {
+    if (num >= 10000) return `${Math.floor(num / 1000) / 10}万+`;
+    if (num >= 1000) return `${Math.floor(num / 100) / 10}k+`;
+    return `${num}+`;
+  };
 
   return (
     <div className="min-h-screen">
@@ -96,7 +131,12 @@ export default function HomePage() {
       <section className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat) => (
+            {stats && [
+              { value: formatStat(stats.services), label: '检测项目' },
+              { value: formatStat(stats.labs), label: '合作实验室' },
+              { value: formatStat(stats.users), label: '服务客户' },
+              { value: formatStat(stats.reports), label: '检测报告' },
+            ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="text-3xl lg:text-4xl font-bold text-blue-600">{stat.value}</div>
                 <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
@@ -138,19 +178,27 @@ export default function HomePage() {
               {tCommon('viewAll')} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-            {categories.map((cat) => (
-              <Link
-                key={cat.name}
-                href="/services"
-                className="flex flex-col items-center p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:shadow-sm transition-all bg-white"
-              >
-                <span className="text-3xl mb-2">{cat.icon}</span>
-                <span className="text-sm font-medium text-gray-800 text-center">{cat.name}</span>
-                <span className="text-xs text-gray-400 mt-1">{cat.count}项</span>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-24 bg-gray-200 animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/services?category=${cat.id}`}
+                  className="flex flex-col items-center p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:shadow-sm transition-all bg-white"
+                >
+                  <FlaskConical className="h-8 w-8 text-blue-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-800 text-center line-clamp-2">{cat.nameZh}</span>
+                  <span className="text-xs text-gray-400 mt-1">{cat.count}项</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -163,33 +211,41 @@ export default function HomePage() {
               {tCommon('viewAll')} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {hotServices.map((service) => (
-              <Link
-                key={service.id}
-                href={`/services/${service.slug}`}
-                className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md hover:border-blue-200 transition-all group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{service.category}</span>
-                    {service.isHot && (
-                      <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full ml-2">热门</span>
-                    )}
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 bg-gray-200 animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {hotServices.map((service) => (
+                <Link
+                  key={service.id}
+                  href={`/services/${service.slug}`}
+                  className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md hover:border-blue-200 transition-all group"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{service.category.nameZh}</span>
+                      {service.isHot && (
+                        <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full ml-2">热门</span>
+                      )}
+                    </div>
+                    <FlaskConical className="h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" />
                   </div>
-                  <FlaskConical className="h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{service.nameZh}</h3>
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                  <div>
-                    <span className="text-lg font-bold text-blue-600">¥{service.price}</span>
-                    <span className="text-xs text-gray-400 ml-1">起</span>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{service.nameZh}</h3>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                    <div>
+                      <span className="text-lg font-bold text-blue-600">¥{service.basePrice}</span>
+                      <span className="text-xs text-gray-400 ml-1">起</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{service.turnaroundDays}个工作日</span>
                   </div>
-                  <span className="text-xs text-gray-500">{service.turnaround}个工作日</span>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
