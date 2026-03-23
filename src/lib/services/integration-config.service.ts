@@ -289,27 +289,62 @@ export async function testIntegrationConnection(
       return { success: false, message: 'Integration not found' };
     }
 
-    // TODO: Implement actual provider test logic based on type
-    // For now, just check if required fields are present
-    const hasRequiredFields = 
-      (config.type === 'SMS' && config.apiKey && config.apiSecret) ||
-      (config.type === 'EMAIL' && config.apiKey) ||
-      (config.type === 'STORAGE' && config.accessKey && config.accessSecret);
-    
-    if (!hasRequiredFields) {
-      return { success: false, message: 'Missing required credentials' };
+    let testResult: { success: boolean; message: string };
+
+    // Test based on type
+    if (config.type === 'SMS') {
+      // Import SMS providers dynamically
+      const { AliyunSMSProvider } = await import('../sms-providers/aliyun');
+      const { TencentSMSProvider } = await import('../sms-providers/tencent');
+      
+      const providerConfig = {
+        apiKey: config.apiKey,
+        apiSecret: config.apiSecret,
+        accessKey: config.accessKey,
+        accessSecret: config.accessSecret,
+        signName: (config.config as any)?.signName,
+        templateId: (config.config as any)?.templateId,
+        endpoint: config.endpoint,
+        region: config.region,
+        mode: config.mode,
+        config: config.config
+      };
+
+      let provider;
+      if (config.provider === 'aliyun_sms' || config.provider === 'aliyun') {
+        provider = new AliyunSMSProvider(providerConfig);
+      } else if (config.provider === 'tencent_sms' || config.provider === 'tencent') {
+        provider = new TencentSMSProvider(providerConfig);
+      }
+
+      if (provider) {
+        testResult = await provider.testConnection();
+      } else {
+        testResult = { success: false, message: 'Unknown SMS provider' };
+      }
+    } else {
+      // For other types, check required fields
+      const hasRequiredFields = 
+        (config.type === 'EMAIL' && config.apiKey) ||
+        (config.type === 'STORAGE' && config.accessKey && config.accessSecret);
+      
+      if (!hasRequiredFields) {
+        testResult = { success: false, message: 'Missing required credentials' };
+      } else {
+        testResult = { success: true, message: 'Configuration valid (provider test not implemented)' };
+      }
     }
 
-    // Update test result
+    // Update test result in database
     await prisma.integrationSetting.update({
       where: { id },
       data: {
         lastTestedAt: new Date(),
-        lastTestResult: 'Connection test passed'
+        lastTestResult: testResult.success ? 'Connection test passed' : testResult.message
       }
     });
 
-    return { success: true, message: 'Connection test passed' };
+    return testResult;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     
