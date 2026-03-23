@@ -45,25 +45,26 @@ model User {
   updatedAt     DateTime   @updatedAt
 
   // Relations
-  company           CompanyMembership?
-  addresses         Address[]
-  orders            Order[]
-  rfqRequests       RFQRequest[]
-  wallet            Wallet?
-  referralCode      ReferralCode?
-  referredBy        Referral?        @relation("ReferredUser")
-  referrals         Referral[]       @relation("ReferrerUser")
-  notifications     Notification[]
-  messages          Message[]
-  favorites         Favorite[]
-  invoiceProfiles   InvoiceProfile[]
-  auditLogs         AuditLog[]
-  labUser           LabUser?
-  technicianTasks   TechnicianTask[]
-  reportDownloads   ReportDownload[]
-  sessions          Session[]
-  equipmentBookings EquipmentBooking[]
-  quotations        Quotation[]
+  company            CompanyMembership?
+  addresses          Address[]
+  orders             Order[]
+  rfqRequests        RFQRequest[]
+  wallet             Wallet?
+  referralCode       ReferralCode?
+  referredBy         Referral?              @relation("ReferredUser")
+  referrals          Referral[]             @relation("ReferrerUser")
+  notifications      Notification[]
+  messages           Message[]
+  favorites          Favorite[]
+  invoiceProfiles    InvoiceProfile[]
+  auditLogs          AuditLog[]
+  labUser            LabUser?
+  technicianTasks    TechnicianTask[]
+  reportDownloads    ReportDownload[]
+  sessions           Session[]
+  equipmentBookings  EquipmentBooking[]
+  quotations         Quotation[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([phone])
@@ -970,20 +971,30 @@ model Transaction {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  orderId       String
-  method        PaymentMethod
-  amount        Decimal       @db.Decimal(12, 2)
-  currency      String        @default("CNY")
-  status        String        @default("pending") // pending, success, failed, refunded
-  transactionId String?
-  externalNo    String?
-  paidAt        DateTime?
-  createdAt     DateTime      @default(now())
+  id              String         @id @default(cuid())
+  orderId         String
+  providerId      String?        // Link to PaymentProvider
+  method          PaymentMethod
+  amount          Decimal        @db.Decimal(12, 2)
+  currency        String         @default("CNY")
+  status          String         @default("pending") // pending, processing, success, failed, refunded, expired
+  transactionId   String?
+  externalNo      String?        // Provider's transaction ID
+  notifyData      Json?          // Raw webhook/notify data
+  verifiedAt      DateTime?      // When payment was verified by webhook
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  refundAmount    Decimal?       @db.Decimal(12, 2)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
+  order    Order             @relation(fields: [orderId], references: [id])
+  provider PaymentProvider?  @relation(fields: [providerId], references: [id])
 
   @@index([orderId])
+  @@index([providerId])
+  @@index([externalNo])
+  @@index([status])
 }
 
 model Invoice {
@@ -1217,4 +1228,159 @@ model AuditLog {
   @@index([userId])
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+// ============================================================
+// PAYMENT PROVIDERS (DYNAMIC CONFIGURATION)
+// ============================================================
+
+enum PaymentProviderType {
+  WECHAT_PAY
+  ALIPAY
+  UNION_PAY
+  BANK_TRANSFER
+}
+
+enum ProviderMode {
+  SANDBOX
+  LIVE
+}
+
+model PaymentProvider {
+  id               String              @id @default(cuid())
+  name             String              // User-friendly name
+  type             PaymentProviderType
+  appId            String?
+  merchantId       String?
+  apiKey           String?             // Encrypted
+  apiSecret        String?             // Encrypted
+  privateKey       String?             // Encrypted
+  publicKey        String?
+  certSerialNo     String?
+  notifyUrl        String?
+  mode             ProviderMode        @default(SANDBOX)
+  isEnabled        Boolean             @default(false)
+  isDefault        Boolean             @default(false)
+  config           Json?               // Additional provider-specific config
+  lastTestedAt     DateTime?
+  lastTestResult   String?
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  payments Payment[]
+
+  @@index([type])
+  @@index([isEnabled])
+}
+
+// ============================================================
+// INTEGRATION SETTINGS (GENERIC)
+// ============================================================
+
+enum IntegrationType {
+  SMS
+  EMAIL
+  STORAGE
+  OAUTH
+  CAPTCHA
+}
+
+model IntegrationSetting {
+  id               String          @id @default(cuid())
+  name             String          // User-friendly name
+  type             IntegrationType
+  provider         String          // e.g., "aliyun_sms", "sendgrid", "aliyun_oss"
+  apiKey           String?         // Encrypted
+  apiSecret        String?         // Encrypted
+  accessKey        String?         // Encrypted
+  accessSecret     String?         // Encrypted
+  endpoint         String?
+  region           String?
+  bucket           String?
+  config           Json?           // Additional provider-specific config
+  isEnabled        Boolean         @default(false)
+  isDefault        Boolean         @default(false)
+  mode             ProviderMode    @default(SANDBOX)
+  lastTestedAt     DateTime?
+  lastTestResult   String?
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([type])
+  @@index([isEnabled])
+}
+
+// ============================================================
+// PASSWORD RESET & OTP
+// ============================================================
+
+model PasswordResetToken {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique // Hashed token, not plain
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model OTPCode {
+  id           String   @id @default(cuid())
+  identifier   String   // phone or email
+  codeHash     String   // Hashed OTP
+  type         String   // "login", "reset", "verify"
+  expiresAt    DateTime
+  attemptCount Int      @default(0)
+  verifiedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([identifier, type])
+  @@index([expiresAt])
+}
+
+// ============================================================
+// RATE LIMITING (PERSISTENT)
+// ============================================================
+
+model RateLimitEntry {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g., "login:192.168.1.1" or "otp:phone:+8613800138000"
+  count       Int      @default(0)
+  resetAt     DateTime
+  blockedUntil DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+  @@index([resetAt])
+}
+
+// ============================================================
+// WEBHOOK LOGS
+// ============================================================
+
+model WebhookLog {
+  id             String   @id @default(cuid())
+  provider       String
+  eventType      String?
+  payload        String   // Raw payload
+  signature      String?
+  isVerified     Boolean
+  processedAt    DateTime?
+  errorMessage   String?
+  relatedEntity  String?  // e.g., "Payment"
+  relatedId      String?  // payment ID
+  createdAt      DateTime @default(now())
+
+  @@index([provider])
+  @@index([createdAt])
+  @@index([relatedEntity, relatedId])
 }
