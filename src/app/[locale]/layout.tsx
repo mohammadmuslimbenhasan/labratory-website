@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { isValidLocale } from '@/i18n/routing';
+import { ReactQueryProvider } from '@/components/providers/ReactQueryProvider';
 import '@/app/globals.css';
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default async function LocaleLayout({
   children,
   params,
 }: {
-  children: React.ReactNode;
+  children: React.NodeNode;
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
@@ -27,9 +28,11 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <div className="antialiased text-gray-900 bg-white min-h-screen">
-        {children}
-      </div>
+      <ReactQueryProvider>
+        <div className="antialiased text-gray-900 bg-white min-h-screen">
+          {children}
+        </div>
+      </ReactQueryProvider>
     </NextIntlClientProvider>
   );
 }

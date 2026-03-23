@@ -10,6 +10,7 @@ import {
   getAllPaymentProviders,
   createPaymentProvider
 } from '@/lib/services/payment-config.service';
+import { createAuditLog } from '@/lib/services/audit.service';
 import { PaymentProviderType, ProviderMode } from '@prisma/client';
 import { z } from 'zod';
 
@@ -88,6 +89,20 @@ export async function POST(request: NextRequest) {
       validation.data,
       authCheck.user.userId
     );
+
+    // Audit log
+    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip');
+    const userAgent = request.headers.get('user-agent');
+    
+    await createAuditLog({
+      userId: authCheck.user.userId,
+      action: 'CREATE',
+      entity: 'PaymentProvider',
+      entityId: provider.id,
+      payload: { name: validation.data.name, type: validation.data.type },
+      ipAddress: clientIp || undefined,
+      userAgent: userAgent || undefined
+    });
 
     return NextResponse.json(
       {
