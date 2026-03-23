@@ -11,15 +11,17 @@ const SALT_LENGTH = 64;
 const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 
-const MASTER_KEY = process.env.ENCRYPTION_KEY;
-if (!MASTER_KEY) {
+const masterKey = process.env.ENCRYPTION_KEY;
+if (!masterKey) {
   throw new Error('ENCRYPTION_KEY environment variable is required');
 }
+
+const MASTER_KEY = Buffer.from(masterKey, 'base64');
 
 // Derive key from master key using PBKDF2
 function deriveKey(salt: Buffer): Buffer {
   return crypto.pbkdf2Sync(
-    Buffer.from(MASTER_KEY, 'base64'),
+    MASTER_KEY,
     salt,
     100000,
     KEY_LENGTH,
@@ -35,17 +37,17 @@ export function encrypt(plaintext: string): string {
   const salt = crypto.randomBytes(SALT_LENGTH);
   const key = deriveKey(salt);
   const iv = crypto.randomBytes(IV_LENGTH);
-  
+
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  
+
   let encrypted = cipher.update(plaintext, 'utf8');
   encrypted = Buffer.concat([encrypted, cipher.final()]);
-  
+
   const tag = cipher.getAuthTag();
-  
+
   // Combine: salt + iv + tag + encrypted
   const combined = Buffer.concat([salt, iv, tag, encrypted]);
-  
+
   return combined.toString('base64');
 }
 
@@ -54,7 +56,7 @@ export function encrypt(plaintext: string): string {
  */
 export function decrypt(ciphertext: string): string {
   const combined = Buffer.from(ciphertext, 'base64');
-  
+
   // Extract components
   const salt = combined.subarray(0, SALT_LENGTH);
   const iv = combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
@@ -63,15 +65,15 @@ export function decrypt(ciphertext: string): string {
     SALT_LENGTH + IV_LENGTH + TAG_LENGTH
   );
   const encrypted = combined.subarray(SALT_LENGTH + IV_LENGTH + TAG_LENGTH);
-  
+
   const key = deriveKey(salt);
-  
+
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(tag);
-  
+
   let decrypted = decipher.update(encrypted);
   decrypted = Buffer.concat([decrypted, decipher.final()]);
-  
+
   return decrypted.toString('utf8');
 }
 
