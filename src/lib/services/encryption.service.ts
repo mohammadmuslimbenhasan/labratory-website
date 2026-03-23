@@ -3,7 +3,7 @@
  * Uses AES-256-GCM for encryption at rest
  */
 
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
